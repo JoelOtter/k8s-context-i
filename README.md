@@ -1,28 +1,23 @@
-# `git branch-i`
+# `k8s-context-i`
 
-I got cross that there's no `git branch --interactive`, so I made this. It's a 
-very (very) simple curses-mode `git branch`/`git checkout` alternative which
-lets you switch branches quickly using the arrow and return keys. It also lets
-you delete branches without needing to type their name or use (_shudder_) a GUI.
-
-It should capture and pipe git output correctly. The attempt is to make it feel
-like as much of a 'real' Git tool as possible.
+This is a tiny little command-line tool, based on [`git branch-i`](
+https://github.com/JoelOtter/git-branch-i
+), for switching Kubernetes contexts. You'll need `kubectl` installed.
 
 ## Installation
 
 Install it using Go, like so:
 
 ```sh
-go install github.com/JoelOtter/git-branch-i@latest
+go install github.com/JoelOtter/k8s-context-i@latest
 ```
 
-You can now run `git branch-i` to use the tool, so long as your Go directory is 
-on your system path.
+Ensure your Go directory is on your system path. You might want to alias this
+tool to something easier to type - I use `kx`.
 
 ## Usage
 
-* Branches can be navigated using the arrow keys, j and k, Pg Up/Down, or
+* Contexts can be navigated using the arrow keys, j and k, Pg Up/Down, or
 Ctrl+N and Ctrl+P.
-* Checkout a branch with the return key.
-* Delete a branch with the delete or backspace key, and use y/n to confirm.
+* Switch to a context with the return key.
 * Exit with Escape or Ctrl+C.

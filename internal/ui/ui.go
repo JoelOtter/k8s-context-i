@@ -2,20 +2,19 @@ package ui
 
 import (
 	"fmt"
-	"github.com/JoelOtter/git-branch-i/internal/git"
-	"github.com/gdamore/tcell/v2"
-	"github.com/mattn/go-runewidth"
 	"io"
 	"strings"
+
+	"github.com/JoelOtter/k8s-context-i/internal/k8s"
+	"github.com/gdamore/tcell/v2"
+	"github.com/mattn/go-runewidth"
 )
 
 type ui struct {
-	screen       tcell.Screen
-	branches     []git.Branch
-	repoRoot     string
-	pointer      int
-	deleteBranch string
-	quit         chan struct{}
+	screen   tcell.Screen
+	contexts []k8s.Context
+	pointer  int
+	quit     chan struct{}
 }
 
 func (u *ui) drawStr(x int, y int, style tcell.Style, str string) {
@@ -34,8 +33,8 @@ func (u *ui) drawStr(x int, y int, style tcell.Style, str string) {
 
 func (u *ui) draw() {
 	u.screen.Clear()
-	u.drawStr(1, 1, tcell.StyleDefault.Bold(true), u.repoRoot)
-	for i, branch := range u.branches {
+	u.drawStr(1, 1, tcell.StyleDefault.Bold(true), "Kubernetes contexts:")
+	for i, branch := range u.contexts {
 		if branch.Current {
 			u.screen.SetCell(1, i+3, tcell.StyleDefault, '*')
 		}
@@ -48,30 +47,18 @@ func (u *ui) draw() {
 		}
 		u.drawStr(3, i+3, style, branch.Name)
 	}
-	if u.deleteBranch != "" {
-		w, h := u.screen.Size()
-		for i := 1; i < w-1; i++ {
-			u.screen.SetCell(i, h-2, tcell.StyleDefault.Background(tcell.ColorRed))
-		}
-		u.drawStr(
-			2,
-			h-2,
-			tcell.StyleDefault.Background(tcell.ColorRed).Foreground(tcell.ColorBlack),
-			fmt.Sprintf("Delete branch %s (y/n)? ", u.deleteBranch),
-		)
-	}
 	u.screen.Show()
 }
 
 func (u *ui) keyDown() {
-	u.pointer = (u.pointer + 1) % len(u.branches)
+	u.pointer = (u.pointer + 1) % len(u.contexts)
 	u.draw()
 }
 
 func (u *ui) keyUp() {
 	u.pointer = u.pointer - 1
 	if u.pointer < 0 {
-		u.pointer = len(u.branches) - 1
+		u.pointer = len(u.contexts) - 1
 	}
 	u.draw()
 }
@@ -86,42 +73,18 @@ func (u *ui) run(uiOut io.Writer, uiErr *error) {
 			case tcell.KeyEscape, tcell.KeyCtrlC:
 				return
 			case tcell.KeyEnter:
-				*uiErr = git.ChangeBranch(u.branches[u.pointer].Name, uiOut)
+				*uiErr = k8s.ChangeContext(u.contexts[u.pointer].Name, uiOut)
 				return
 			case tcell.KeyUp, tcell.KeyPgUp, tcell.KeyCtrlP:
 				u.keyUp()
 			case tcell.KeyDown, tcell.KeyPgDn, tcell.KeyCtrlN:
 				u.keyDown()
-			case tcell.KeyDelete, tcell.KeyBackspace, tcell.KeyDEL:
-				u.deleteBranch = u.branches[u.pointer].Name
-				u.draw()
 			case tcell.KeyRune:
 				switch ev.Rune() {
 				case 'j':
 					u.keyDown()
 				case 'k':
 					u.keyUp()
-				case 'y':
-					if u.deleteBranch != "" {
-						u.branches, *uiErr = git.DeleteBranch(u.deleteBranch, uiOut)
-						if *uiErr != nil {
-							return
-						}
-						u.deleteBranch = ""
-						u.pointer = u.pointer - 1
-						if u.pointer < 0 {
-							u.pointer = 0
-						}
-						u.draw()
-					}
-				case 'n':
-					if u.deleteBranch != "" {
-						u.deleteBranch = ""
-					}
-					u.draw()
-				case 'd':
-					u.deleteBranch = u.branches[u.pointer].Name
-					u.draw()
 				}
 			}
 		case *tcell.EventResize:
@@ -131,7 +94,7 @@ func (u *ui) run(uiOut io.Writer, uiErr *error) {
 	}
 }
 
-func ShowUI(branches []git.Branch) error {
+func ShowUI(contexts []k8s.Context) error {
 	tcell.SetEncodingFallback(tcell.EncodingFallbackASCII)
 	screen, err := tcell.NewScreen()
 	if err != nil {
@@ -149,18 +112,11 @@ func ShowUI(branches []git.Branch) error {
 		}
 	}()
 
-	gitRoot, err := git.GetRepoRoot(uiOut)
-	if err != nil {
-		return fmt.Errorf("failed to get repo root: %w", err)
-	}
-
 	u := &ui{
-		screen:       screen,
-		branches:     branches,
-		repoRoot:     gitRoot,
-		pointer:      getInitialPointer(branches),
-		deleteBranch: "",
-		quit:         make(chan struct{}),
+		screen:   screen,
+		contexts: contexts,
+		pointer:  getInitialPointer(contexts),
+		quit:     make(chan struct{}),
 	}
 	u.draw()
 
@@ -176,9 +132,9 @@ func ShowUI(branches []git.Branch) error {
 	}
 }
 
-func getInitialPointer(branches []git.Branch) int {
-	for i, branch := range branches {
-		if branch.Current {
+func getInitialPointer(contexts []k8s.Context) int {
+	for i, ctx := range contexts {
+		if ctx.Current {
 			return i
 		}
 	}

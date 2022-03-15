@@ -2,24 +2,25 @@ package main
 
 import (
 	"fmt"
-	"github.com/JoelOtter/git-branch-i/internal/git"
-	"github.com/JoelOtter/git-branch-i/internal/ui"
-	"github.com/spf13/cobra"
 	"log"
 	"os"
+
+	"github.com/JoelOtter/k8s-context-i/internal/k8s"
+	"github.com/JoelOtter/k8s-context-i/internal/ui"
+	"github.com/spf13/cobra"
 )
 
 func main() {
 	var debug bool
 
 	cmd := &cobra.Command{
-		Use: "git-branch-i",
+		Use: "k8s-context-i",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			branches, err := git.GetBranches()
+			contexts, err := k8s.GetContexts()
 			if err != nil {
 				return err
 			}
-			if err := ui.ShowUI(branches); err != nil {
+			if err := ui.ShowUI(contexts); err != nil {
 				return fmt.Errorf("failed to show UI: %w", err)
 			}
 			return nil
